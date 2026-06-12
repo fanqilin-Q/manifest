@@ -80,6 +80,15 @@ textarea{resize:vertical}
   <div class="sub" id="sub"></div>
   <div id="main"></div>
   <div class="footer">念念不忘 · 必有回响</div>
+  <div style="text-align:center;margin-top:18px">
+    <button class="ghost" id="syncToggle">☁ 云端同步</button>
+  </div>
+  <div class="card" id="syncCard" style="display:none">
+    <div class="label">云端同步</div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.8;margin-top:8px" id="syncDesc"></p>
+    <div id="syncBody"></div>
+    <div id="syncStatus" style="font-size:12px;color:var(--dim);margin-top:10px"></div>
+  </div>
 </div>
 
 <script>
@@ -109,15 +118,75 @@ let data={goals:[],activeId:null};
 let stage="vow";
 let breathing=false;
 
+// ———— 云端同步(口令 + 端到端加密) ————
+const SYNC_KEY="manifest:sync";
+let syncPass=null;
+try{const s=localStorage.getItem(SYNC_KEY);if(s)syncPass=JSON.parse(s).pass;}catch(e){}
+let pushTimer=null;
+let syncStatusEl=null;
+
+function b2a(buf){let s="";const b=new Uint8Array(buf);for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+function a2b(str){const bin=atob(str);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
+async function syncId(pass){
+  const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("manifest-id:"+pass));
+  return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+async function deriveKeyFromPass(pass){
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:new TextEncoder().encode("manifest-sync-v1"),iterations:100000,hash:"SHA-256"},
+    km,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptData(pass,obj){
+  const key=await deriveKeyFromPass(pass);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({iv:b2a(iv),ct:b2a(ct)});
+}
+async function decryptData(pass,blob){
+  const {iv,ct}=JSON.parse(blob);
+  const key=await deriveKeyFromPass(pass);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:a2b(iv)},key,a2b(ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function setSyncStatus(msg){if(syncStatusEl)syncStatusEl.textContent=msg;}
+async function cloudPush(){
+  if(!syncPass||!AI_ENDPOINT)return;
+  try{
+    setSyncStatus("同步中…");
+    const blob=await encryptData(syncPass,data);
+    const res=await fetch(AI_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({mode:"sync-save",id:await syncId(syncPass),blob})});
+    const out=await res.json();
+    if(!res.ok||!out.ok)throw new Error(out.error||"同步失败");
+    setSyncStatus("已同步 "+new Date().toTimeString().slice(0,5));
+  }catch(e){setSyncStatus("同步失败:"+(e.message||"网络错误"));}
+}
+function schedulePush(){
+  if(!syncPass)return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(cloudPush,2000);
+}
+async function cloudPull(pass){
+  const res=await fetch(AI_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({mode:"sync-load",id:await syncId(pass)})});
+  const out=await res.json();
+  if(!res.ok)throw new Error(out.error||"读取失败");
+  if(!out.blob)return null;
+  return decryptData(pass,out.blob);
+}
+
 function load(){
   try{const r=localStorage.getItem(KEY);if(r)data=JSON.parse(r);}catch(e){}
 }
 let saveTimer=null;
 function save(){
+  data.updatedAt=Date.now();
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
     try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){console.error("保存失败",e);}
   },400);
+  schedulePush();
 }
 function goal(){return data.goals.find(g=>g.id===data.activeId)||null;}
 function today(){return new Date().toISOString().slice(0,10);}
@@ -448,7 +517,9 @@ function renderScene(el){
     const entry={text:v,date:today()};
     if(pendingImg)entry.img=pendingImg;
     g.scenes.unshift(entry);
+    data.updatedAt=Date.now();
     try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+    schedulePush();
     ta.value="";cnt.textContent="0 字";
     pendingImg=null;imgZone.innerHTML="";
     sv.textContent="已保存 ✓";
@@ -502,7 +573,76 @@ function render(){
   else renderProof(el);
 }
 
-load();render();
+// ———— 同步面板 ————
+function renderSyncPanel(){
+  const card=document.getElementById("syncCard");
+  const desc=document.getElementById("syncDesc");
+  const bodyEl=document.getElementById("syncBody");
+  syncStatusEl=document.getElementById("syncStatus");
+  document.getElementById("syncToggle").onclick=()=>{
+    card.style.display=card.style.display==="none"?"block":"none";
+  };
+  bodyEl.innerHTML="";
+  if(!syncPass){
+    desc.textContent="设一句只有你知道的同步口令,数据会加密后存入云端——换手机或电脑,输入同一句口令即可取回。口令就是钥匙:云端只存密文,谁都读不了;但口令忘了,数据也无法找回,请记牢。";
+    const row=document.createElement("div");row.className="row";
+    row.innerHTML=`<input id="passInput" type="password" placeholder="输入同步口令(建议一句完整的话)">
+      <button class="btn" id="passBtn">开启同步</button>`;
+    bodyEl.appendChild(row);
+    row.querySelector("#passBtn").onclick=async()=>{
+      const p=row.querySelector("#passInput").value.trim();
+      if(p.length<6){alert("口令太短了,至少6个字,建议用一句完整的话。");return;}
+      const btn=row.querySelector("#passBtn");
+      btn.disabled=true;btn.textContent="连接中…";
+      try{
+        const cloud=await cloudPull(p);
+        if(cloud&&cloud.goals&&cloud.goals.length>0){
+          const useCloud=confirm("云端已有这个口令的数据。\n\n确定 = 用云端数据覆盖本机\n取消 = 保留本机数据并上传覆盖云端");
+          if(useCloud){data=cloud;try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}}
+        }
+        syncPass=p;
+        try{localStorage.setItem(SYNC_KEY,JSON.stringify({pass:p}));}catch(e){}
+        await cloudPush();
+        render();renderSyncPanel();
+      }catch(e){
+        alert("连接失败:"+(e.message||"网络错误"));
+        btn.disabled=false;btn.textContent="开启同步";
+      }
+    };
+  }else{
+    desc.textContent="同步已开启:每次保存后约2秒,数据会自动加密上传。在新设备上打开本应用,输入同一句口令即可取回全部记录。";
+    const btns=document.createElement("div");
+    btns.style.cssText="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap";
+    btns.innerHTML=`<button class="ghost" id="pushNow">立即同步</button>
+      <button class="ghost" id="syncOff">关闭同步</button>`;
+    bodyEl.appendChild(btns);
+    btns.querySelector("#pushNow").onclick=()=>cloudPush();
+    btns.querySelector("#syncOff").onclick=()=>{
+      if(!confirm("关闭后本机数据保留,但不再自动上传。云端已有的数据也保留,重新输入口令可恢复同步。确定关闭?"))return;
+      syncPass=null;
+      try{localStorage.removeItem(SYNC_KEY);}catch(e){}
+      renderSyncPanel();
+    };
+  }
+  setSyncStatus(syncPass?"":"");
+}
+
+load();render();renderSyncPanel();
+
+// 启动时:若已开启同步,拉取云端,谁新用谁
+(async()=>{
+  if(!syncPass)return;
+  try{
+    setSyncStatus("正在检查云端…");
+    const cloud=await cloudPull(syncPass);
+    if(cloud&&(cloud.updatedAt||0)>(data.updatedAt||0)){
+      data=cloud;
+      try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+      render();
+    }
+    setSyncStatus("已同步 "+new Date().toTimeString().slice(0,5));
+  }catch(e){setSyncStatus("云端检查失败:"+(e.message||"网络错误"));}
+})();
 </script>
 </body>
 </html>
