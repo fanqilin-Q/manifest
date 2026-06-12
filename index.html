@@ -85,6 +85,8 @@ textarea{resize:vertical}
 <script>
 "use strict";
 const KEY="manifest:data";
+// ↓ 部署好 Cloudflare Worker 后,把这里换成你的 Worker 网址(形如 https://xxx.workers.dev)
+const AI_ENDPOINT="https://manifest.fanqi-lin.workers.dev";
 const STAGES=[
   {id:"vow",name:"立愿",sub:"写下你的目标"},
   {id:"vision",name:"观想",sub:"在心中看见它"},
@@ -203,6 +205,53 @@ function renderVision(el){
   const p1=document.createElement("div");p1.className="card";
   p1.innerHTML=`<div class="label">观想引导</div>`+VISION_PROMPTS.map(p=>`<div class="prompt"><span style="color:var(--cyan)">✦</span> ${p}</div>`).join("");
   el.appendChild(p1);
+
+  // —— AI 具象化 ——
+  const ai=document.createElement("div");ai.className="card";
+  ai.innerHTML=`<div class="label">AI 具象化</div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.8;margin-top:8px">写一句简短的描述,AI 帮你展开成具体、可观想的画面。</p>
+    <div class="row"><input id="aiInput" placeholder="比如:我在香港的新办公室里备课">
+    <button class="btn" id="aiBtn">展开</button></div>
+    <div id="aiZone"></div>`;
+  el.appendChild(ai);
+  const aiZone=ai.querySelector("#aiZone");
+  const aiBtn=ai.querySelector("#aiBtn");
+  const runAI=async()=>{
+    const v=ai.querySelector("#aiInput").value.trim();
+    if(!v)return;
+    if(!AI_ENDPOINT){
+      aiZone.innerHTML=`<div style="font-size:13px;color:var(--dim);margin-top:12px;line-height:1.8">AI 功能尚未配置。需要部署中转服务后,在代码中填入 AI_ENDPOINT 地址。</div>`;
+      return;
+    }
+    aiBtn.disabled=true;aiBtn.textContent="展开中…";
+    aiZone.innerHTML=`<div style="font-size:13px;color:var(--dim);margin-top:12px">光正在汇聚…</div>`;
+    try{
+      const res=await fetch(AI_ENDPOINT,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text:v}),
+      });
+      const out=await res.json();
+      if(!res.ok||!out.fragments)throw new Error(out.error||"生成失败");
+      aiZone.innerHTML="";
+      out.fragments.forEach(f=>{
+        const d=document.createElement("div");d.className="frag";
+        d.style.borderLeftColor="var(--purple)";d.style.background="var(--purple-soft)";
+        const span=document.createElement("span");span.textContent=f;
+        const btn=document.createElement("span");
+        btn.textContent="＋收入";btn.className="del";
+        btn.style.color="var(--purple)";btn.style.fontSize="13px";
+        btn.onclick=()=>{g.visions.push(f);save();drawFrags();d.remove();};
+        d.appendChild(span);d.appendChild(btn);
+        aiZone.appendChild(d);
+      });
+    }catch(e){
+      aiZone.innerHTML=`<div style="font-size:13px;color:var(--dim);margin-top:12px">${esc(e.message||"网络错误,请重试")}</div>`;
+    }finally{
+      aiBtn.disabled=false;aiBtn.textContent="展开";
+    }
+  };
+  aiBtn.onclick=runAI;
+  ai.querySelector("#aiInput").onkeydown=e=>{if(e.key==="Enter")runAI();};
 
   const c=document.createElement("div");c.className="card";
   c.innerHTML=`<div class="label">画面碎片</div>
