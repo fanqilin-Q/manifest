@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>显化 · Manifest</title>
+<meta name="description" content="立愿 · 观想 · 入境 · 应验 —— 一个安静的显化练习工具">
+<meta name="theme-color" content="#EFEAFB">
+<link rel="apple-touch-icon" href="data:,">
+<style>
+:root{
+  --ink:#2D2A45; --dim:#5F5982; --purple:#6C5CC9; --cyan:#1F9D99;
+  --purple-soft:rgba(139,123,216,.12); --cyan-soft:rgba(63,184,180,.10);
+  --line:rgba(139,123,216,.25); --card:rgba(255,255,255,.85);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;color:var(--ink);
+  background:linear-gradient(160deg,#F3EEFE 0%,#EAE6FB 30%,#DEF2F5 70%,#E9F7F3 100%);
+  background-attachment:fixed;
+  font-family:'PingFang SC','Noto Sans SC','Microsoft YaHei',-apple-system,sans-serif;
+  padding:0 16px 64px;position:relative;overflow-x:hidden;
+}
+.wrap{max-width:640px;margin:0 auto;position:relative;z-index:1}
+.cloud{position:absolute;border-radius:50%;filter:blur(40px);pointer-events:none;z-index:0}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,12px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,-10px)}}
+@keyframes drift3{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-16px)}}
+@keyframes orbBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes hueShift{0%,100%{filter:hue-rotate(0)}50%{filter:hue-rotate(30deg)}}
+@keyframes breathe{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1.25);opacity:1}}
+@media (prefers-reduced-motion:reduce){.cloud,#orb,.breath{animation:none!important}}
+.label{font-size:12px;letter-spacing:.35em;color:var(--dim);font-weight:600}
+.card{background:var(--card);border:1px solid rgba(255,255,255,.9);border-radius:18px;
+  padding:18px;margin-top:14px;box-shadow:0 8px 32px rgba(139,123,216,.10);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+input,textarea{width:100%;background:rgba(255,255,255,.95);border:1px solid var(--line);
+  border-radius:12px;color:var(--ink);padding:12px 14px;font-size:15px;
+  font-family:inherit;outline:none;line-height:1.7}
+input:focus,textarea:focus{border-color:var(--purple)}
+textarea{resize:vertical}
+.btn{background:linear-gradient(135deg,var(--purple),var(--cyan));color:#fff;border:none;
+  border-radius:999px;padding:10px 24px;font-size:14px;cursor:pointer;font-family:inherit;
+  letter-spacing:.1em;box-shadow:0 4px 16px rgba(139,123,216,.35);flex-shrink:0}
+.ghost{background:rgba(255,255,255,.6);color:var(--dim);border:1px solid var(--line);
+  border-radius:999px;padding:7px 16px;font-size:13px;cursor:pointer;font-family:inherit}
+.row{display:flex;gap:10px;margin-top:12px}
+.tabs{display:flex;justify-content:center;gap:6px;margin:22px 0 4px;flex-wrap:wrap}
+.tab{background:rgba(255,255,255,.55);color:var(--dim);border:1px solid rgba(255,255,255,.95);
+  border-radius:999px;padding:8px 18px;cursor:pointer;font-family:inherit;font-size:14px;
+  font-weight:600;letter-spacing:.15em}
+.tab.on{background:linear-gradient(135deg,var(--purple-soft),var(--cyan-soft));
+  color:var(--purple);border-color:#6C5CC988;box-shadow:0 4px 14px rgba(139,123,216,.25)}
+.sub{text-align:center;font-size:12px;color:var(--dim);margin-bottom:4px}
+.prompt{font-size:14px;color:var(--dim);margin-top:10px;line-height:1.8}
+.frag{margin-top:10px;padding:10px 14px;border-left:3px solid var(--cyan);
+  background:var(--cyan-soft);border-radius:0 10px 10px 0;font-size:14px;line-height:1.7;
+  display:flex;justify-content:space-between;gap:8px}
+.del{color:var(--dim);cursor:pointer;flex-shrink:0;user-select:none}
+.hint{text-align:center;color:var(--dim);font-size:14px;padding:32px}
+.logrow{display:flex;gap:14px;align-items:baseline}
+.logdate{font-size:12px;color:var(--purple);flex-shrink:0;font-variant-numeric:tabular-nums}
+.footer{text-align:center;margin-top:48px;font-size:11px;color:var(--dim);letter-spacing:.2em}
+</style>
+</head>
+<body>
+<div class="cloud" style="top:6%;left:-8%;width:380px;height:140px;background:rgba(255,255,255,.75);animation:drift1 26s ease-in-out infinite"></div>
+<div class="cloud" style="top:24%;right:-10%;width:440px;height:160px;background:rgba(216,205,255,.55);animation:drift2 32s ease-in-out infinite"></div>
+<div class="cloud" style="top:55%;left:-12%;width:400px;height:150px;background:rgba(195,235,233,.6);animation:drift3 28s ease-in-out infinite"></div>
+<div class="cloud" style="top:78%;right:-6%;width:360px;height:130px;background:rgba(255,255,255,.65);animation:drift1 30s ease-in-out infinite"></div>
+
+<div class="wrap">
+  <div style="display:flex;flex-direction:column;align-items:center;padding:40px 0 8px">
+    <div id="orb" style="width:100px;height:100px;border-radius:50%;border:1px solid rgba(255,255,255,.9);animation:orbBreath 6s ease-in-out infinite,hueShift 14s ease-in-out infinite"></div>
+    <div class="label" style="margin-top:16px">显 化 之 珠</div>
+    <div id="orbInfo" style="font-size:12px;color:var(--dim);margin-top:6px"></div>
+  </div>
+  <div id="goalHeader" style="text-align:center;margin:10px 0 4px"></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="sub" id="sub"></div>
+  <div id="main"></div>
+  <div class="footer">念念不忘 · 必有回响</div>
+</div>
+
+<script>
+"use strict";
+const KEY="manifest:data";
+const STAGES=[
+  {id:"vow",name:"立愿",sub:"写下你的目标"},
+  {id:"vision",name:"观想",sub:"在心中看见它"},
+  {id:"scene",name:"入境",sub:"以现在时活在其中"},
+  {id:"proof",name:"应验",sub:"记录每一个迹象"},
+];
+const VISION_PROMPTS=[
+  "实现那天,你身处什么环境?光线、声音、气味是什么样的?",
+  "你穿着什么?手里拿着什么?",
+  "谁在你身边?他们说了什么?",
+  "那一刻你身体的感觉——心跳、呼吸、温度?",
+];
+const SCENE_PROMPTS=[
+  "用现在时写:「我正在……」",
+  "写下今天作为『已经实现的人』会做的一件小事",
+  "写一段实现后的日常,平淡一点,越真实越好",
+];
+
+let data={goals:[],activeId:null};
+let stage="vow";
+let breathing=false;
+
+function load(){
+  try{const r=localStorage.getItem(KEY);if(r)data=JSON.parse(r);}catch(e){}
+}
+let saveTimer=null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){console.error("保存失败",e);}
+  },400);
+}
+function goal(){return data.goals.find(g=>g.id===data.activeId)||null;}
+function today(){return new Date().toISOString().slice(0,10);}
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+
+// ———— 顶部:珠与标题 ————
+function renderTop(){
+  const g=goal();
+  const glow=g?Math.min(1,g.logs.length/12):0;
+  const orb=document.getElementById("orb");
+  orb.style.background=`radial-gradient(circle at 36% 30%,rgba(255,255,255,.85),rgba(186,168,255,${.35+glow*.45}) 42%,rgba(111,214,210,${.3+glow*.4}) 70%,rgba(255,255,255,.25) 95%)`;
+  orb.style.boxShadow=`0 0 ${24+glow*70}px rgba(139,123,216,${.25+glow*.45}),0 0 ${16+glow*50}px rgba(63,184,180,${.18+glow*.35}),inset 0 0 28px rgba(255,255,255,.8)`;
+  document.getElementById("orbInfo").textContent=g?`已记录 ${g.logs.length} 个迹象 · 珠光 ${Math.round(glow*100)}%`:"立愿之后,珠光渐明";
+  const h=document.getElementById("goalHeader");
+  h.innerHTML=g?`<div style="font-size:19px;font-weight:600;letter-spacing:.04em">${esc(g.title)}</div>${g.date?`<div style="font-size:12px;color:var(--dim);margin-top:4px">期于 ${esc(g.date)}</div>`:""}`:"";
+}
+
+function renderTabs(){
+  const t=document.getElementById("tabs");
+  t.innerHTML="";
+  STAGES.forEach(s=>{
+    const b=document.createElement("button");
+    b.className="tab"+(stage===s.id?" on":"");
+    b.textContent=s.name;
+    b.onclick=()=>{stage=s.id;render();};
+    t.appendChild(b);
+  });
+  document.getElementById("sub").textContent=STAGES.find(s=>s.id===stage).sub;
+}
+
+// ———— 立愿 ————
+function renderVow(el){
+  const card=document.createElement("div");card.className="card";
+  card.innerHTML=`<div class="label">新立一愿</div>
+    <div class="row"><input id="vowInput" placeholder="写下一个清晰、具体的目标…">
+    <button class="btn" id="vowBtn">立愿</button></div>`;
+  el.appendChild(card);
+  const add=()=>{
+    const v=card.querySelector("#vowInput").value.trim();
+    if(!v)return;
+    data.goals.push({id:Date.now().toString(36),title:v,why:"",date:"",visions:[],scene:"",logs:[],created:today()});
+    data.activeId=data.goals[data.goals.length-1].id;
+    save();render();
+  };
+  card.querySelector("#vowBtn").onclick=add;
+  card.querySelector("#vowInput").onkeydown=e=>{if(e.key==="Enter")add();};
+
+  data.goals.forEach(g=>{
+    const c=document.createElement("div");c.className="card";
+    c.style.cursor="pointer";
+    if(g.id===data.activeId)c.style.border="1.5px solid var(--purple)";
+    c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-size:17px;font-weight:600">${esc(g.title)}</div>
+        <button class="ghost drop" style="padding:3px 10px">放下</button></div>
+      <div style="font-size:12px;color:var(--dim);margin-top:6px">立于 ${esc(g.created)} · ${g.logs.length} 个迹象</div>`;
+    c.onclick=()=>{if(data.activeId!==g.id){data.activeId=g.id;save();render();}};
+    c.querySelector(".drop").onclick=e=>{
+      e.stopPropagation();
+      if(confirm("放下这个愿望?")){
+        data.goals=data.goals.filter(x=>x.id!==g.id);
+        if(data.activeId===g.id)data.activeId=null;
+        save();render();
+      }
+    };
+    if(g.id===data.activeId){
+      const inner=document.createElement("div");
+      inner.style.cssText="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)";
+      inner.onclick=e=>e.stopPropagation();
+      inner.innerHTML=`<div class="label">为何而愿</div>
+        <textarea class="why" style="margin-top:10px;min-height:80px" placeholder="这个目标为什么对你重要?动机越真,显化越稳。">${esc(g.why)}</textarea>
+        <div class="label" style="display:block;margin-top:14px">期望之期</div>
+        <input type="date" class="when" style="margin-top:10px" value="${esc(g.date)}">`;
+      inner.querySelector(".why").oninput=e=>{g.why=e.target.value;save();};
+      inner.querySelector(".when").onchange=e=>{g.date=e.target.value;save();renderTop();};
+      c.appendChild(inner);
+    }
+    el.appendChild(c);
+  });
+}
+
+// ———— 观想 ————
+function renderVision(el){
+  const g=goal();
+  if(!g){el.innerHTML=`<div class="card hint">先到「立愿」写下一个目标</div>`;return;}
+  const p1=document.createElement("div");p1.className="card";
+  p1.innerHTML=`<div class="label">观想引导</div>`+VISION_PROMPTS.map(p=>`<div class="prompt"><span style="color:var(--cyan)">✦</span> ${p}</div>`).join("");
+  el.appendChild(p1);
+
+  const c=document.createElement("div");c.className="card";
+  c.innerHTML=`<div class="label">画面碎片</div>
+    <div class="row"><input id="visInput" placeholder="写下一个具体的画面细节…">
+    <button class="btn" id="visBtn">收入</button></div>
+    <div id="frags"></div>`;
+  el.appendChild(c);
+  const drawFrags=()=>{
+    const f=c.querySelector("#frags");f.innerHTML="";
+    g.visions.forEach((v,i)=>{
+      const d=document.createElement("div");d.className="frag";
+      d.innerHTML=`<span>${esc(v)}</span><span class="del">×</span>`;
+      d.querySelector(".del").onclick=()=>{g.visions.splice(i,1);save();drawFrags();};
+      f.appendChild(d);
+    });
+  };
+  drawFrags();
+  const add=()=>{
+    const v=c.querySelector("#visInput").value.trim();
+    if(!v)return;
+    g.visions.push(v);save();
+    c.querySelector("#visInput").value="";
+    drawFrags();
+  };
+  c.querySelector("#visBtn").onclick=add;
+  c.querySelector("#visInput").onkeydown=e=>{if(e.key==="Enter")add();};
+
+  const m=document.createElement("div");m.className="card";m.style.textAlign="center";
+  m.innerHTML=`<div class="label">静观三分钟</div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.8;margin:10px 0">点击开始,跟随光的呼吸节律——吸气光涨,呼气光落。<br>闭眼,把上面的画面在心中放映一遍。</p>
+    <button class="btn" id="brBtn">${breathing?"收功":"开始静观"}</button>
+    <div id="brZone"></div>`;
+  el.appendChild(m);
+  const drawBreath=()=>{
+    const z=m.querySelector("#brZone");
+    z.innerHTML=breathing?`<div style="display:flex;justify-content:center;padding:28px 0 8px">
+      <div class="breath" style="width:120px;height:120px;border-radius:50%;
+      background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.95),rgba(186,168,255,.5) 50%,rgba(111,214,210,.3) 75%,transparent 95%);
+      box-shadow:0 0 60px rgba(139,123,216,.45),0 0 40px rgba(63,184,180,.3);
+      animation:breathe 8s ease-in-out infinite"></div></div>`:"";
+    m.querySelector("#brBtn").textContent=breathing?"收功":"开始静观";
+  };
+  m.querySelector("#brBtn").onclick=()=>{breathing=!breathing;drawBreath();};
+  drawBreath();
+}
+
+// ———— 入境 ————
+function renderScene(el){
+  const g=goal();
+  if(!g){el.innerHTML=`<div class="card hint">先到「立愿」写下一个目标</div>`;return;}
+  const p=document.createElement("div");p.className="card";
+  p.innerHTML=`<div class="label">入境提示</div>`+SCENE_PROMPTS.map(x=>`<div class="prompt"><span style="color:var(--purple)">✦</span> ${x}</div>`).join("");
+  el.appendChild(p);
+  const c=document.createElement("div");c.className="card";
+  c.innerHTML=`<div class="label">情景脚本 · 以现在时书写</div>
+    <textarea id="sceneTa" style="margin-top:12px;min-height:220px" placeholder="我正在……
+
+(把实现后的某一天写成日记,细节越具体越好。每天来读一遍,或重写一遍。)"></textarea>
+    <div id="cnt" style="font-size:12px;color:var(--dim);margin-top:8px;text-align:right"></div>`;
+  el.appendChild(c);
+  const ta=c.querySelector("#sceneTa"),cnt=c.querySelector("#cnt");
+  ta.value=g.scene;
+  cnt.textContent=`${g.scene.length} 字 · 自动保存`;
+  ta.oninput=()=>{g.scene=ta.value;save();cnt.textContent=`${g.scene.length} 字 · 自动保存`;};
+}
+
+// ———— 应验 ————
+function renderProof(el){
+  const g=goal();
+  if(!g){el.innerHTML=`<div class="card hint">先到「立愿」写下一个目标</div>`;return;}
+  const c=document.createElement("div");c.className="card";
+  c.innerHTML=`<div class="label">记录一个迹象</div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.8;margin-top:8px">任何朝向目标的进展、巧合、机会、心态变化,都值得记下。每一条都让珠光更亮。</p>
+    <div class="row"><input id="logInput" placeholder="今天出现了什么迹象?">
+    <button class="btn" id="logBtn">记下</button></div>`;
+  el.appendChild(c);
+  const list=document.createElement("div");el.appendChild(list);
+  const drawLogs=()=>{
+    list.innerHTML="";
+    if(g.logs.length===0){
+      list.innerHTML=`<div class="card hint">还没有记录。从今天开始留意生活中的回应。</div>`;return;
+    }
+    g.logs.forEach((l,i)=>{
+      const d=document.createElement("div");d.className="card logrow";
+      d.innerHTML=`<span class="logdate">${esc(l.date)}</span><span style="font-size:14px;line-height:1.7;flex:1">${esc(l.text)}</span><span class="del">×</span>`;
+      d.querySelector(".del").onclick=()=>{g.logs.splice(i,1);save();drawLogs();renderTop();};
+      list.appendChild(d);
+    });
+  };
+  drawLogs();
+  const add=()=>{
+    const v=c.querySelector("#logInput").value.trim();
+    if(!v)return;
+    g.logs.unshift({text:v,date:today()});save();
+    c.querySelector("#logInput").value="";
+    drawLogs();renderTop();
+  };
+  c.querySelector("#logBtn").onclick=add;
+  c.querySelector("#logInput").onkeydown=e=>{if(e.key==="Enter")add();};
+}
+
+function render(){
+  renderTop();renderTabs();
+  const el=document.getElementById("main");
+  el.innerHTML="";
+  if(stage==="vow")renderVow(el);
+  else if(stage==="vision")renderVision(el);
+  else if(stage==="scene")renderScene(el);
+  else renderProof(el);
+}
+
+load();render();
+</script>
+</body>
+</html>
