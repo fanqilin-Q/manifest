@@ -151,9 +151,9 @@ function renderTabs(){
 // ———— 立愿 ————
 function renderVow(el){
   const card=document.createElement("div");card.className="card";
-  card.innerHTML=`<div class="label">新立一愿</div>
-    <div class="row"><input id="vowInput" placeholder="写下一个清晰、具体的目标…">
-    <button class="btn" id="vowBtn">立愿</button></div>`;
+  card.innerHTML=`<div class="label">我以宇宙之名宣告</div>
+    <div class="row"><input id="vowInput" placeholder="我已拥有 / 我正在……(以宣告语写下愿望)">
+    <button class="btn" id="vowBtn">以此成就</button></div>`;
   el.appendChild(card);
   const add=()=>{
     const v=card.querySelector("#vowInput").value.trim();
@@ -302,20 +302,159 @@ function renderVision(el){
 function renderScene(el){
   const g=goal();
   if(!g){el.innerHTML=`<div class="card hint">先到「立愿」写下一个目标</div>`;return;}
+  // 旧数据迁移:单篇 scene 字符串 → scenes 数组
+  if(!Array.isArray(g.scenes)){
+    g.scenes=[];
+    if(g.scene&&g.scene.trim())g.scenes.push({text:g.scene,date:g.created||today()});
+    g.scene="";save();
+  }
   const p=document.createElement("div");p.className="card";
   p.innerHTML=`<div class="label">入境提示</div>`+SCENE_PROMPTS.map(x=>`<div class="prompt"><span style="color:var(--purple)">✦</span> ${x}</div>`).join("");
   el.appendChild(p);
+
   const c=document.createElement("div");c.className="card";
   c.innerHTML=`<div class="label">情景脚本 · 以现在时书写</div>
-    <textarea id="sceneTa" style="margin-top:12px;min-height:220px" placeholder="我正在……
+    <div id="chipZone" style="margin-top:10px"></div>
+    <textarea id="sceneTa" style="margin-top:12px;min-height:180px" placeholder="我正在……
 
-(把实现后的某一天写成日记,细节越具体越好。每天来读一遍,或重写一遍。)"></textarea>
-    <div id="cnt" style="font-size:12px;color:var(--dim);margin-top:8px;text-align:right"></div>`;
+(把实现后的某一天写成日记。点上方的画面碎片可以插入素材,或让 AI 先织一篇草稿再改。)"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
+      <span id="cnt" style="font-size:12px;color:var(--dim)"></span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ghost" id="weaveBtn">AI 织成情景</button>
+        <button class="ghost" id="imgBtn">生成画面</button>
+        <button class="btn" id="sceneSave">保存</button>
+      </span>
+    </div>
+    <div id="imgZone" style="margin-top:12px"></div>`;
   el.appendChild(c);
-  const ta=c.querySelector("#sceneTa"),cnt=c.querySelector("#cnt");
-  ta.value=g.scene;
-  cnt.textContent=`${g.scene.length} 字 · 自动保存`;
-  ta.oninput=()=>{g.scene=ta.value;save();cnt.textContent=`${g.scene.length} 字 · 自动保存`;};
+  const list=document.createElement("div");el.appendChild(list);
+
+  const ta=c.querySelector("#sceneTa"),cnt=c.querySelector("#cnt"),sv=c.querySelector("#sceneSave"),wv=c.querySelector("#weaveBtn"),ib=c.querySelector("#imgBtn"),imgZone=c.querySelector("#imgZone");
+  let pendingImg=null; // 当前生成、尚未随卡片保存的图片URL
+  cnt.textContent="0 字";
+  ta.oninput=()=>{cnt.textContent=`${ta.value.length} 字`;};
+
+  // 画面碎片标签:点击插入到脚本
+  const chipZone=c.querySelector("#chipZone");
+  if(g.visions.length===0){
+    chipZone.innerHTML=`<div style="font-size:12px;color:var(--dim);line-height:1.7">还没有画面碎片——先到「观想」收集一些,这里就有素材可用了。</div>`;
+  }else{
+    g.visions.forEach(v=>{
+      const chip=document.createElement("span");
+      chip.textContent=v.length>16?v.slice(0,16)+"…":v;
+      chip.title=v;
+      chip.style.cssText="display:inline-block;font-size:12px;color:var(--cyan);background:var(--cyan-soft);border:1px solid rgba(63,184,180,.3);border-radius:999px;padding:4px 12px;margin:0 6px 6px 0;cursor:pointer;line-height:1.5";
+      chip.onclick=()=>{
+        const pos=ta.selectionStart??ta.value.length;
+        ta.value=ta.value.slice(0,pos)+v+ta.value.slice(pos);
+        ta.focus();
+        cnt.textContent=`${ta.value.length} 字`;
+      };
+      chipZone.appendChild(chip);
+    });
+  }
+
+  // AI 织成情景
+  wv.onclick=async()=>{
+    if(!AI_ENDPOINT){alert("AI 功能尚未配置");return;}
+    if(ta.value.trim()&&!confirm("用 AI 草稿替换当前内容?"))return;
+    wv.disabled=true;wv.textContent="编织中…";
+    try{
+      const res=await fetch(AI_ENDPOINT,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"weave",goal:g.title,why:g.why,fragments:g.visions}),
+      });
+      const out=await res.json();
+      if(!res.ok||!out.script)throw new Error(out.error||"生成失败");
+      ta.value=out.script;
+      cnt.textContent=`${ta.value.length} 字 · AI 草稿,改成你自己的版本再保存`;
+      ta.focus();
+    }catch(e){
+      alert(e.message||"网络错误,请重试");
+    }finally{
+      wv.disabled=false;wv.textContent="AI 织成情景";
+    }
+  };
+
+  // 生成画面
+  ib.onclick=async()=>{
+    if(!AI_ENDPOINT){alert("AI 功能尚未配置");return;}
+    const src=ta.value.trim()||g.title;
+    if(!src){alert("先写一点情景内容");return;}
+    ib.disabled=true;ib.textContent="成像中…";
+    imgZone.innerHTML=`<div style="font-size:13px;color:var(--dim)">画面正在浮现…(约十秒)</div>`;
+    try{
+      const res=await fetch(AI_ENDPOINT,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"image",text:src}),
+      });
+      const out=await res.json();
+      if(!res.ok||!out.image)throw new Error(out.error||"生成失败");
+      // 压缩到 900px JPEG,小体积永久存进本地
+      pendingImg=await new Promise((resolve)=>{
+        const im=new Image();
+        im.onload=()=>{
+          try{
+            const max=900,r=Math.min(1,max/Math.max(im.width,im.height));
+            const cv=document.createElement("canvas");
+            cv.width=Math.round(im.width*r);cv.height=Math.round(im.height*r);
+            cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+            resolve(cv.toDataURL("image/jpeg",0.82));
+          }catch(e){resolve(out.image);}
+        };
+        im.onerror=()=>resolve(out.image);
+        im.src=out.image;
+      });
+      imgZone.innerHTML="";
+      const img=document.createElement("img");
+      img.src=pendingImg;
+      img.style.cssText="width:100%;border-radius:14px;display:block";
+      img.alt="情景画面";
+      imgZone.appendChild(img);
+      const tip=document.createElement("div");
+      tip.style.cssText="font-size:12px;color:var(--dim);margin-top:6px";
+      tip.textContent="点「保存」会把画面随这篇情景一起归档。想换一张,直接再点「生成画面」。";
+      imgZone.appendChild(tip);
+    }catch(e){
+      imgZone.innerHTML="";
+      alert(e.message||"网络错误,请重试");
+    }finally{
+      ib.disabled=false;ib.textContent="生成画面";
+    }
+  };
+
+  const drawScenes=()=>{
+    list.innerHTML="";
+    if(g.scenes.length===0)return;
+    g.scenes.forEach((s,i)=>{
+      const d=document.createElement("div");d.className="card";
+      d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="logdate">${esc(s.date)}</span>
+          <span class="del">×</span></div>`+
+        (s.img?`<img src="${esc(s.img)}" alt="情景画面" style="width:100%;border-radius:14px;display:block;margin-top:10px" onerror="this.style.display='none'">`:"")+
+        `<div style="font-size:14px;line-height:1.9;margin-top:8px;white-space:pre-wrap">${esc(s.text)}</div>`;
+      d.querySelector(".del").onclick=()=>{
+        if(confirm("删除这篇情景?")){g.scenes.splice(i,1);save();drawScenes();}
+      };
+      list.appendChild(d);
+    });
+  };
+  drawScenes();
+
+  sv.onclick=()=>{
+    const v=ta.value.trim();
+    if(!v)return;
+    const entry={text:v,date:today()};
+    if(pendingImg)entry.img=pendingImg;
+    g.scenes.unshift(entry);
+    try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+    ta.value="";cnt.textContent="0 字";
+    pendingImg=null;imgZone.innerHTML="";
+    sv.textContent="已保存 ✓";
+    setTimeout(()=>{sv.textContent="保存";},1500);
+    drawScenes();
+  };
 }
 
 // ———— 应验 ————
